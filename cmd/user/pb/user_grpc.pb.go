@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type UsersClient interface {
 	// GetUsers
 	GetUsers(ctx context.Context, in *EmptyReq, opts ...grpc.CallOption) (*GetUsersResponse, error)
+	Sample(ctx context.Context, in *EmptyReq, opts ...grpc.CallOption) (Users_SampleClient, error)
 }
 
 type usersClient struct {
@@ -39,12 +40,45 @@ func (c *usersClient) GetUsers(ctx context.Context, in *EmptyReq, opts ...grpc.C
 	return out, nil
 }
 
+func (c *usersClient) Sample(ctx context.Context, in *EmptyReq, opts ...grpc.CallOption) (Users_SampleClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Users_ServiceDesc.Streams[0], "/user.Users/Sample", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &usersSampleClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Users_SampleClient interface {
+	Recv() (*SampleResponse, error)
+	grpc.ClientStream
+}
+
+type usersSampleClient struct {
+	grpc.ClientStream
+}
+
+func (x *usersSampleClient) Recv() (*SampleResponse, error) {
+	m := new(SampleResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // UsersServer is the server API for Users service.
 // All implementations should embed UnimplementedUsersServer
 // for forward compatibility
 type UsersServer interface {
 	// GetUsers
 	GetUsers(context.Context, *EmptyReq) (*GetUsersResponse, error)
+	Sample(*EmptyReq, Users_SampleServer) error
 }
 
 // UnimplementedUsersServer should be embedded to have forward compatible implementations.
@@ -53,6 +87,9 @@ type UnimplementedUsersServer struct {
 
 func (UnimplementedUsersServer) GetUsers(context.Context, *EmptyReq) (*GetUsersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUsers not implemented")
+}
+func (UnimplementedUsersServer) Sample(*EmptyReq, Users_SampleServer) error {
+	return status.Errorf(codes.Unimplemented, "method Sample not implemented")
 }
 
 // UnsafeUsersServer may be embedded to opt out of forward compatibility for this service.
@@ -84,6 +121,27 @@ func _Users_GetUsers_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Users_Sample_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(EmptyReq)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(UsersServer).Sample(m, &usersSampleServer{stream})
+}
+
+type Users_SampleServer interface {
+	Send(*SampleResponse) error
+	grpc.ServerStream
+}
+
+type usersSampleServer struct {
+	grpc.ServerStream
+}
+
+func (x *usersSampleServer) Send(m *SampleResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // Users_ServiceDesc is the grpc.ServiceDesc for Users service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -96,6 +154,12 @@ var Users_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Users_GetUsers_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Sample",
+			Handler:       _Users_Sample_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "user.proto",
 }

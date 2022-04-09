@@ -2,29 +2,47 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/TakaWakiyama/forcusing-backend/cmd/user/pb"
 )
 
-type UserService interface {
-	GetUsers(context.Context, *pb.EmptyReq) (*pb.GetUsersResponse, error)
-}
-
 type userService struct{}
 
-func NewUserService() UserService {
+func NewUserService() pb.UsersServer {
 	return userService{}
 }
 
+// GetUsers
 func (s userService) GetUsers(ctx context.Context, req *pb.EmptyReq) (*pb.GetUsersResponse, error) {
 	u := &pb.User{
-		Name: "a",
-		Age:  122,
+		Name: "aaaaaaaa",
+		Age:  111,
 	}
 
-	res := &pb.GetUsersResponse{
-		Users: []*pb.User{u, u, u},
+	users := []*pb.User{u}
+
+	return &pb.GetUsersResponse{
+		Users: users,
+	}, nil
+}
+
+func (s userService) Sample(ctx *pb.EmptyReq, server pb.Users_SampleServer) error {
+	var res pb.SampleResponse
+	i := 0
+	for {
+		fmt.Printf("Cound: %d \n", i)
+		res = pb.SampleResponse{
+			Id: int32(i),
+		}
+		server.Send(&res)
+		time.Sleep(time.Second)
+		i++
+		if i > 100 {
+			break
+		}
 	}
 
-	return res, nil
+	return nil
 }

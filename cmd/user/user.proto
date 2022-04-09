@@ -7,6 +7,7 @@ option go_package = "/;pb";
 service Users {
   // GetUsers
   rpc GetUsers(EmptyReq) returns (GetUsersResponse) {};
+  rpc Sample(EmptyReq) returns (stream SampleResponse) {};
 }
 
 // EmptyReq message
@@ -16,6 +17,10 @@ message EmptyReq {}
 message GetUsersResponse {
   // User message
   repeated User users = 1;
+}
+
+message SampleResponse {
+  int32 id = 1;
 }
 
 // User message

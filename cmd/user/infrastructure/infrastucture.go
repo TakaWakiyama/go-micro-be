@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/TakaWakiyama/forcusing-backend/cmd/user/common"
-	model "github.com/TakaWakiyama/forcusing-backend/cmd/user/domain/repository"
+	"github.com/TakaWakiyama/forcusing-backend/cmd/user/domain/model"
 )
 
 type userRepository struct{}

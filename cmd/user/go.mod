@@ -2,7 +2,10 @@ module github.com/TakaWakiyama/forcusing-backend/cmd/user
 
 go 1.17
 
+replace github.com/TakaWakiyama/forcusing-backend/cmd/user/pb => ./pb
+
 require (
+	github.com/TakaWakiyama/forcusing-backend/cmd/user/pb v0.0.0-00010101000000-000000000000
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.27.1
 )
