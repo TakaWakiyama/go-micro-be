@@ -15,15 +15,16 @@ func main() {
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 
-	defer conn.Close()
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	defer conn.Close()
+
 	client := pb.NewUsersClient(conn)
 	ctx := context.Background()
 	watcher, err := client.Sample(ctx, &pb.EmptyReq{})
+
 	if err != nil {
 		panic(err)
 	}
