@@ -6,3 +6,19 @@ services:
       - "8001:8001"
     environment:
       PORT: 8001
+    depends_on:
+      - "postgres"
+  postgres:
+      image: postgres:12.10
+      restart: always
+      environment:
+        - POSTGRES_USER=root
+        - POSTGRES_PASSWORD=root
+      logging:
+        options:
+          max-size: 10m
+          max-file: "3"
+      ports:
+        - '5432:5432'
+      volumes:
+        - ./db/postgres-data:/var/lib/postgresql/data
