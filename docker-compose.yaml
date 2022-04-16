@@ -1,0 +1,8 @@
+version: "3.9"  # optional since v1.27.0
+services:
+  user:
+    build: ./cmd/user
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: 8001

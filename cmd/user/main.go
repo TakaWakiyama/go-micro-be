@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/TakaWakiyama/forcusing-backend/cmd/user/pb"
 	"github.com/TakaWakiyama/forcusing-backend/cmd/user/service"
@@ -10,7 +12,11 @@ import (
 )
 
 func main() {
-	lis, err := net.Listen("tcp", ":8080")
+	os.Environ()
+
+	port := os.Getenv("PORT")
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v\n", err)
 	}
@@ -20,7 +26,7 @@ func main() {
 	server := grpc.NewServer()
 	pb.RegisterUsersServer(server, service)
 
-	log.Println("Listening on port 8080...")
+	log.Printf("Listening on port %s... \n", port)
 
 	if err := server.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
