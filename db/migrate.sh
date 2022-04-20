@@ -12,19 +12,14 @@ do
 done
 
 if [[ -z $DB_USER ]];then
-    export $DB_USER=root
+    export DB_USER="root"
 fi
 
 if [[ -z $DB_PASSWORD ]];then
-    $DB_PASSWORD=root
+    DB_PASSWORD="root"
 fi
 
-if [[ -z $db ]];then
-    echo "Please add db name!"
-    exit
-fi
-
-OPTS=("migrate" "rollback" "create" "exit" "enter")
+OPTS=("migrate" "rollback" "create" "enter" "version" "exit" )
 OPT=""
 
 set_operation() {
@@ -40,17 +35,34 @@ set_operation() {
       esac
   done
 }
+set_operation
 
-if [[ $OPT=create ]];then
-    goose -dir=$db create add_table sql
+
+if [[ $OPT = enter ]];then
+    psql -h 127.0.0.1 -U root -W
+    exit
+fi
+
+if [[ -z $db ]];then
+    echo -n "Type database name and press enter: ";
+    read;
+    db=${REPLY}
+fi
+
+
+if [[ $OPT = create && -n $title ]];then
     goose -dir=$db create $title sql
 fi
-else if [[ $OPT=enter ]];then
-    psql -h 127.0.0.1 -U root -W
+if [[ $OPT = migrate ]];then
+  goose -dir=$db postgres "user=${DB_USER} password=${DB_PASSWORD} dbname=${db} sslmode=disable" up
+fi
+
+if [[ $OPT = version ]];then
+    goose postgres "user=${DB_USER} password=${DB_PASSWORD} dbname=${db} sslmode=disable" version
 fi
 
 
 
 # goose postgres "user=${DB_USER} password=${DB_PASSWORD} dbname=${db} sslmode=disable" status
 
-# goose postgres "user=root password=root dbname=account sslmode=disable" status
+# goose --dir="./task" postgres "user=root password=root dbname=task sslmode=disable" up
