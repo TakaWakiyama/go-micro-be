@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"cloud.google.com/go/pubsub"
 	"google.golang.org/api/iterator"
@@ -18,10 +20,6 @@ func main() {
 		log.Fatalf("Could not create pubsub Client: %v", err)
 	}
 	const topic = "my-topic"
-	// Create a new topic called my-topic.
-	if err := create(client, topic); err != nil {
-		// log.Fatalf("Failed to create a topic: %v", err)
-	}
 	// List all the topics from the project.
 	fmt.Println("Listing all topics from the project:")
 	topics, err := list(client)
@@ -67,8 +65,17 @@ func create(client *pubsub.Client, topic string) error {
 func publish(client *pubsub.Client, topic, msg string) error {
 	ctx := context.Background()
 	t := client.Topic(topic)
+
+	e := newCustomEvent()
+	// json encode event
+	ev, err := json.Marshal(e)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("msg: %v\n", msg)
+
 	result := t.Publish(ctx, &pubsub.Message{
-		Data: []byte(msg),
+		Data: ev,
 	})
 	// Block until the result is returned and a server-generated
 	// ID is returned for the published message.
@@ -78,4 +85,18 @@ func publish(client *pubsub.Client, topic, msg string) error {
 	}
 	fmt.Printf("Published a message; msg ID: %v\n", id)
 	return nil
+}
+
+type customEvent struct {
+	CreatedAt int64  `json:"created_at"`
+	Message   string `json:"message"`
+	Number    int32  `json:"number"`
+}
+
+func newCustomEvent() *customEvent {
+	return &customEvent{
+		CreatedAt: time.Now().Unix(),
+		Message:   "Hello, World!",
+		Number:    42,
+	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -25,13 +26,11 @@ func main() {
 	sub := "sample" // viper.GetString("subscriber") // retrieve values from viper instead of pflag
 	t := createTopicIfNotExists(client, "my-topic")
 	// Create a new subscription.
-	if err := create(client, sub, t); err != nil {
-		log.Fatalf("create error %v", err)
-	}
-	// Pull messages via the subscription.
+	log.Println("start")
 	if err := pullMsgs(client, sub, t, false); err != nil {
 		log.Fatal(err)
 	}
+
 }
 
 func createTopicIfNotExists(c *pubsub.Client, topic string) *pubsub.Topic {
@@ -94,7 +93,12 @@ func pullMsgs(client *pubsub.Client, name string, topic *pubsub.Topic, testPubli
 	cctx, cancel := context.WithCancel(ctx)
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
 		msg.Ack()
-		fmt.Printf("Got message: %q\n", string(msg.Data))
+		var event customEvent
+		if err := json.Unmarshal(msg.Data, &event); err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Printf("Got message: %+v\n", event)
 		mu.Lock()
 		defer mu.Unlock()
 		received++
@@ -106,4 +110,10 @@ func pullMsgs(client *pubsub.Client, name string, topic *pubsub.Topic, testPubli
 		return err
 	}
 	return nil
+}
+
+type customEvent struct {
+	CreatedAt int64  `json:"created_at"`
+	Message   string `json:"message"`
+	Number    int32  `json:"number"`
 }

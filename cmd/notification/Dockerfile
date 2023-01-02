@@ -8,8 +8,7 @@ RUN apk update && apk add git
 WORKDIR ${ROOT}
 COPY . .
 
-# RUN go build -o /go/bin/notification ./main.go
-RUN go run main.go --subscription subscriptionname1
+RUN go build -o /go/bin/notification ./main.go
 
 # RUN go mod download
 EXPOSE 8082
