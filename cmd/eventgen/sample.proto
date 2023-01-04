@@ -1,0 +1,27 @@
+syntax = "proto3";
+package events;
+
+message HelloWorldRequest {
+	string name = 1;
+	string message = 2;
+	int64 timestamp = 3;
+	optional string subscription = 10001;
+	optional string topic = 10002;
+}
+
+message HogeEventRequest {
+	string hoge = 1;
+	string message = 2;
+	int64 timestamp = 3;
+	int32 count = 4;
+	optional string subscription = 10001;
+	optional string topic = 10002;
+}
+
+message EmptyResponse {
+}
+
+service HelloWorldService {
+	rpc HelloWorld(HelloWorldRequest) returns (EmptyResponse) {}
+	rpc HogeEvent(HogeEventRequest) returns (EmptyResponse) {}
+}

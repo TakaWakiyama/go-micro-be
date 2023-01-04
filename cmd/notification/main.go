@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"cloud.google.com/go/pubsub"
@@ -192,24 +193,64 @@ func pullMsgs(ctx context.Context, client *pubsub.Client, subScriptionName, topi
 	return nil
 }
 
-// 1. Topicを作成する
+// 1. Topicを作成する(optional)
 // 2. Subscriptionを作成する
 // 3. listenする
 // 4. 関数に渡す
 
-// pflag.String("subscriber", "example-subscription", "name of subscriber")
-// pflag.Parse()
-// viper.BindPFlags(pflag.CommandLine)
-// ctx := context.Background()
-// proj := "forcusing"
-// client, err := pubsub.NewClient(ctx, proj)
-// if err != nil {
-// log.Fatalf("Could not create pubsub Client: %v", err)
-// }
-// sub := "sample" // viper.GetString("subscriber") // retrieve values from viper instead of pflag
-// t := createTopicIfNotExists(client, "my-topic")
-// // Create a new subscription.
-// log.Println("start")
-// if err := pullMsgs(client, sub, t, false); err != nil {
-// log.Fatal(err)
-// }
+// Publisher側の実装
+func newPubsubClient() *pubsub.Client {
+	ctx := context.Background()
+	proj := "forcusing"
+
+	client, err := pubsub.NewClient(ctx, proj)
+	if err != nil {
+		log.Fatalf("Could not create pubsub Client: %v", err)
+	}
+	return client
+}
+
+type HelloWorldClent interface {
+	PublishHelloWorldEvent(ctx context.Context, event *HellowWorldEvent) (string, error)
+	PublishHogeEvent(ctx context.Context, event *HogeEvent) (string, error)
+}
+
+type helloWorldClient struct {
+	client *pubsub.Client
+}
+
+func NewHelloWorldClient() *helloWorldClient {
+	return &helloWorldClient{
+		client: newPubsubClient(),
+	}
+}
+
+func (c *helloWorldClient) PublishHelloWorldEvent(ctx context.Context, event *HellowWorldEvent) (string, error) {
+	topic := "helloworld-topic"
+	return c.publish(topic, event)
+}
+
+func (c *helloWorldClient) PublishHogeEvent(ctx context.Context, event *HogeEvent) (string, error) {
+	topic := "hoge-topic"
+	return c.publish(topic, event)
+}
+
+func (c *helloWorldClient) publish(topic string, event any) (string, error) {
+	ctx := context.Background()
+	t := c.client.Topic(topic)
+
+	// json encode event
+	ev, err := json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+
+	result := t.Publish(ctx, &pubsub.Message{
+		Data: ev,
+	})
+	id, err := result.Get(ctx)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
