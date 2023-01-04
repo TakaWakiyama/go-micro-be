@@ -3,7 +3,6 @@ go 1.19
 use (
 	./cmd/eventgen
 	./cmd/notification
-	./cmd/protoc-gen-go-ascii
 	./cmd/protoc-gen-go-event
 	./cmd/user
 )
