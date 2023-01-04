@@ -4,34 +4,149 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
+	"os"
 
 	"cloud.google.com/go/pubsub"
 )
 
-func main() {
-	// pflag.String("subscriber", "example-subscription", "name of subscriber")
-	// pflag.Parse()
-	// viper.BindPFlags(pflag.CommandLine)
-	// ctx := context.Background()
-	// proj := "forcusing"
-	// client, err := pubsub.NewClient(ctx, proj)
-	// if err != nil {
-	// log.Fatalf("Could not create pubsub Client: %v", err)
-	// }
-	// sub := "sample" // viper.GetString("subscriber") // retrieve values from viper instead of pflag
-	// t := createTopicIfNotExists(client, "my-topic")
-	// // Create a new subscription.
-	// log.Println("start")
-	// if err := pullMsgs(client, sub, t, false); err != nil {
-	// log.Fatal(err)
-	// }
-	run()
-
+/* proto input
+message HelloWorldRequest {
+	string name = 1;
+	string message = 2;
+	int64 timestamp = 3;
+	optinal string subscription = 10001;
+	optinal string topic = 10002;
 }
 
-func run() {
 
+message HogeEventRequest {
+	string hoge = 1;
+	string message = 2;
+	int64 timestamp = 3;
+	int32 count = 4;
+	optinal string subscription = 10001;
+	optinal string topic = 10002;
+}
+
+service HelloWorldService {
+	rpc HelloWorld(HelloWorldRequest) returns (EmptyResponse) {}
+	rpc HogeEvent(HogeEventRequest) returns (EmptyResponse) {}
+}
+*/
+
+type HellowWorldEvent struct {
+	Name      string `json:"name"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+type HogeEvent struct {
+	Hoge      string `json:"hoge"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"timestamp"`
+	Count     int32  `json:"count"`
+}
+
+type HelloWorldService interface {
+	HelloWorld(ctx context.Context, req *HellowWorldEvent) error
+	HogeEvent(ctx context.Context, req *HogeEvent) error
+}
+
+type helloWorldService struct {
+}
+
+func (s *helloWorldService) HelloWorld(ctx context.Context, req *HellowWorldEvent) error {
+	fmt.Printf("req: %+v\n", req)
+	fmt.Printf("ctx: %v\n", ctx)
+	return nil
+}
+
+func (s *helloWorldService) HogeEvent(ctx context.Context, req *HogeEvent) error {
+	fmt.Printf("req: %+v\n", req)
+	fmt.Printf("ctx: %v\n", ctx)
+	return nil
+}
+
+func newHelloWorldService() HelloWorldService {
+	return &helloWorldService{}
+}
+
+func main() {
+	s := newHelloWorldService()
+	run(s)
+}
+
+func run(service HelloWorldService) {
+	ctx := context.Background()
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT_ID")
+	if projectID == "" {
+		projectID = "forcusing"
+	}
+
+	client, err := pubsub.NewClient(ctx, projectID)
+	if err != nil {
+		panic(err)
+	}
+	// AutoGenerate
+	if err := listenHelloWorldEvent(ctx, client, service); err != nil {
+		// ER
+		panic(err)
+	}
+	if err := listenHogeEvent(ctx, client, service); err != nil {
+		panic(err)
+	}
+}
+
+func listenHelloWorldEvent(ctx context.Context, client *pubsub.Client, service HelloWorldService) error {
+	subscriptionName := "helloworld-subscription" // TODO: AutoGenerate
+	topicName := "helloworld-topic"               // TODO: AutoGenerate
+
+	// TODO: メッセージの処理時間の延長を実装する必要がある
+	// https://christina04.hatenablog.com/entry/cloud-pubsub
+	callback := func(ctx context.Context, msg *pubsub.Message) {
+		msg.Ack()
+		var event HellowWorldEvent
+		if err := json.Unmarshal(msg.Data, &event); err != nil {
+			fmt.Println(err)
+			// error 処理
+		}
+		if err := service.HelloWorld(ctx, &event); err != nil {
+			// 再送信させる
+			msg.Nack()
+		}
+	}
+	err := pullMsgs(ctx, client, subscriptionName, topicName, callback)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func listenHogeEvent(ctx context.Context, client *pubsub.Client, service HelloWorldService) error {
+	subscriptionName := "hoge-subscription" // TODO: AutoGenerate
+	topicName := "hoge-topic"               // TODO: AutoGenerate
+
+	// TODO: メッセージの処理時間の延長を実装する必要がある
+	// https://christina04.hatenablog.com/entry/cloud-pubsub
+	callback := func(ctx context.Context, msg *pubsub.Message) {
+		msg.Ack()
+		var event HogeEvent
+		if err := json.Unmarshal(msg.Data, &event); err != nil {
+			fmt.Println(err)
+			// error 処理
+		}
+		if err := service.HogeEvent(ctx, &event); err != nil {
+			// 再送信させる
+			msg.Nack()
+		}
+	}
+	err := pullMsgs(ctx, client, subscriptionName, topicName, callback)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // func createTopicIfNotExists(c *pubsub.Client, topic string) *pubsub.Topic {
@@ -66,41 +181,35 @@ func run() {
 // return nil
 // }
 
-func pullMsgs(client *pubsub.Client, name string, topic *pubsub.Topic) error {
-	ctx := context.Background()
-
-	var mu sync.Mutex
-	received := 0
-	sub := client.Subscription(name)
-	cctx, cancel := context.WithCancel(ctx)
-	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
-		msg.Ack()
-		var event customEvent
-		if err := json.Unmarshal(msg.Data, &event); err != nil {
-			fmt.Println(err)
-		}
-		fmt.Printf("Got message: %+v\n", event)
-		mu.Lock()
-		defer mu.Unlock()
-		received++
-		if received == 10 {
-			cancel()
-		}
-		// msg.Nack()
-	})
+func pullMsgs(ctx context.Context, client *pubsub.Client, subScriptionName, topicName string, callback func(context.Context, *pubsub.Message)) error {
+	sub := client.Subscription(subScriptionName)
+	// topic := client.Topic(topicName)
+	fmt.Printf("topicName: %v\n", topicName)
+	err := sub.Receive(ctx, callback)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type customEvent struct {
-	CreatedAt int64  `json:"created_at"`
-	Message   string `json:"message"`
-	Number    int32  `json:"number"`
-}
-
 // 1. Topicを作成する
 // 2. Subscriptionを作成する
 // 3. listenする
 // 4. 関数に渡す
+
+// pflag.String("subscriber", "example-subscription", "name of subscriber")
+// pflag.Parse()
+// viper.BindPFlags(pflag.CommandLine)
+// ctx := context.Background()
+// proj := "forcusing"
+// client, err := pubsub.NewClient(ctx, proj)
+// if err != nil {
+// log.Fatalf("Could not create pubsub Client: %v", err)
+// }
+// sub := "sample" // viper.GetString("subscriber") // retrieve values from viper instead of pflag
+// t := createTopicIfNotExists(client, "my-topic")
+// // Create a new subscription.
+// log.Println("start")
+// if err := pullMsgs(client, sub, t, false); err != nil {
+// log.Fatal(err)
+// }
