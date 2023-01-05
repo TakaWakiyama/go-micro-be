@@ -1,14 +1,12 @@
 syntax = "proto3";
 package events;
 
-option go_package = "github.com/mercari/mtc2018-webinar/events";
+option go_package = "github.com/TakaWakiyama/forcusing-backend/cmd/eventgen";
 
 message HelloWorldRequest {
 	string name = 1;
 	string message = 2;
 	int64 timestamp = 3;
-	optional string subscription = 10001;
-	optional string topic = 10002;
 }
 
 message HogeEventRequest {
@@ -16,8 +14,6 @@ message HogeEventRequest {
 	string message = 2;
 	int64 timestamp = 3;
 	int32 count = 4;
-	optional string subscription = 10001;
-	optional string topic = 10002;
 }
 
 message EmptyResponse {
