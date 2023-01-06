@@ -48,11 +48,6 @@ type HogeEvent struct {
 	Count     int32  `json:"count"`
 }
 
-type HelloWorldService interface {
-	HelloWorld(ctx context.Context, req *HellowWorldEvent) error
-	HogeEvent(ctx context.Context, req *HogeEvent) error
-}
-
 type helloWorldService struct {
 }
 
@@ -66,6 +61,11 @@ func (s *helloWorldService) HogeEvent(ctx context.Context, req *HogeEvent) error
 	fmt.Printf("req: %+v\n", req)
 	fmt.Printf("ctx: %v\n", ctx)
 	return nil
+}
+
+type HelloWorldService interface {
+	HelloWorld(ctx context.Context, req *HellowWorldEvent) error
+	HogeEvent(ctx context.Context, req *HogeEvent) error
 }
 
 func newHelloWorldService() HelloWorldService {

@@ -7,6 +7,6 @@ package eventgen
 import "context"
 
 type HelloWorldService interface {
-	HelloWorld(ctx context.Context, req *HelloWorldRequest) error
-	HogeEvent(ctx context.Context, req *HogeEventRequest) error
+	HelloWorld(ctx context.Context, req *HelloWorldRequest) EmptyResponse
+	HogeEvent(ctx context.Context, req *HogeEventRequest) EmptyResponse
 }

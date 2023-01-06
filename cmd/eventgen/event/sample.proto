@@ -3,6 +3,17 @@ package events;
 
 option go_package = "github.com/TakaWakiyama/forcusing-backend/cmd/eventgen";
 
+import "google/protobuf/descriptor.proto";
+
+message PubSubOption {
+	string topic = 1;
+	string subscription = 2;
+}
+
+extend google.protobuf.MethodOptions{
+	optional PubSubOption pubSubOption = 50006;
+  }
+
 message HelloWorldRequest {
 	string name = 1;
 	string message = 2;
@@ -20,6 +31,22 @@ message EmptyResponse {
 }
 
 service HelloWorldService {
-	rpc HelloWorld(HelloWorldRequest) returns (EmptyResponse) {}
-	rpc HogeEvent(HogeEventRequest) returns (EmptyResponse) {}
+	/*
+	HelloworldService is a service for testing.
+	*/
+	rpc HelloWorld(HelloWorldRequest) returns (EmptyResponse) {
+		option (pubSubOption) = {
+			topic: "helloworldtopic"
+			subscription: "helloworldsubscription"
+		};
+	}
+	/**
+	 * HogeEvent is a service for testing.
+	 */
+	rpc HogeEvent(HogeEventRequest) returns (EmptyResponse) {
+		option (pubSubOption) = {
+			topic: "hoge"
+			subscription: "hoge"
+		};
+	}
 }
