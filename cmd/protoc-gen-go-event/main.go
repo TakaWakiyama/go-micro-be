@@ -2,13 +2,16 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-// protoc --go_out=. --go_opt=paths=source_relative --eventgen_out=. --eventgen_opt=paths=source_relative event/sample.proto
-// protoc --go_out=. --go_opt=paths=source_relative \ --go-ascii_out=. --go-ascii_opt=paths=source_relative example/example.proto
 // https://github.com/infobloxopen/protoc-gen-gorm/blob/main/plugin/plugin.go
+// https://cloud.google.com/pubsub/docs/samples/pubsub-publish-proto-messages
+// https://github.com/golang/protobuf/issues/1260
+// protoc --go_out=. --go_opt=paths=source_relative  --go-event_out=. --go-event_opt=paths=source_relative sample.proto
 
 var font *string
 
@@ -51,7 +54,10 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 	svcName := svc.GoName
 	g.P("type ", svcName, " interface {")
 	for _, m := range svc.Methods {
-		g.P(m.GoName, "(ctx context.Context, req *", m.Input.GoIdent, ") error ")
+		// g.P("// ", m.Comments.Leading, " ", m.Comments.Trailing)
+		g.P(m.GoName, "(ctx context.Context, req *", m.Input.GoIdent, ") ", m.Output.GoIdent)
+		options := m.Desc.Options().(*descriptorpb.MethodOptions)
+		fmt.Printf("options: %+v\n", options)
 	}
 	g.P("}")
 
