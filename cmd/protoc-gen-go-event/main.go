@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/TakaWakiyama/forcusing-backend/cmd/protoc-gen-go-event/option"
 	"google.golang.org/protobuf/compiler/protogen"
@@ -15,17 +16,19 @@ import (
 // protoc --go_out=. --go_opt=paths=source_relative  --go-event_out=. --go-event_opt=paths=source_relative sample.proto
 
 const (
-	GO_IMPORT_FMT     = "fmt"
-	GO_IMPORT_CONTEXT = "context"
-	GO_IMPORT_JSON    = "encoding/json"
-	GO_IMPORT_PUBSUB  = "cloud.google.com/go/pubsub"
+	GO_IMPORT_FMT          = "fmt"
+	GO_IMPORT_CONTEXT      = "context"
+	GO_IMPORT_PUBSUB       = "cloud.google.com/go/pubsub"
+	GO_IMPORT_PROTO        = "google.golang.org/protobuf/proto"
+	GO_IMPORT_PROTOREFLECT = "google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var allImportMods = []string{
 	GO_IMPORT_FMT,
 	GO_IMPORT_CONTEXT,
-	GO_IMPORT_JSON,
 	GO_IMPORT_PUBSUB,
+	GO_IMPORT_PROTO,
+	GO_IMPORT_PROTOREFLECT,
 }
 
 func main() {
@@ -96,7 +99,7 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 			msg.Ack()
 		`)
 		g.P("var event ", m.Input.GoIdent)
-		g.P("if err := json.Unmarshal(msg.Data, &event); err != nil {")
+		g.P("if err := proto.Unmarshal(msg.Data, &event); err != nil {")
 		g.P("fmt.Println(err)")
 		// error 処理
 		g.P("}")
@@ -127,6 +130,11 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 	}
 	`)
 
+	// Create Client Code
+	genClientCode(svcName, svc.Methods, g)
+	// Create Publish Function
+	genCreateTopicFunction(g)
+
 	return g
 }
 
@@ -138,4 +146,77 @@ func getPubSubOption(m *protogen.Method) (*option.PubSubOption, error) {
 		return nil, errors.New("no pubsub option")
 	}
 	return opt, nil
+}
+
+// Client Code生成
+func genClientCode(svcName string, methods []*protogen.Method, g *protogen.GeneratedFile) {
+
+	g.P("type ", svcName, "Client interface {")
+	for _, m := range methods {
+		g.P("Publish", m.GoName, "(ctx context.Context, req *", m.Input.GoIdent, ") (string, error)")
+	}
+	g.P("}")
+
+	template := `
+	type inner{{.Name}}Client struct {
+		client *pubsub.Client
+	}
+
+	func New{{.Name}}Client(client *pubsub.Client) *inner{{.Name}}Client {
+		return &inner{{.Name}}Client{
+			client: client,
+		}
+	}
+
+	func (c *inner{{.Name}}Client) publish(topic string, event protoreflect.ProtoMessage) (string, error) {
+		ctx := context.Background()
+		// TODO: メモリに持っておく
+		t := c.client.Topic(topic)
+
+		ev, err := proto.Marshal(event)
+		if err != nil {
+			return "", err
+		}
+
+		result := t.Publish(ctx, &pubsub.Message{
+			Data: ev,
+		})
+		id, err := result.Get(ctx)
+		if err != nil {
+			return "", err
+		}
+		return id, nil
+	}
+	`
+	constructor := strings.ReplaceAll(template, "{{.Name}}", svcName)
+	g.P(constructor)
+
+	for _, m := range methods {
+		opt, _ := getPubSubOption(m)
+		g.P("func (c *inner", svcName, "Client) Publish", m.GoName, "(ctx context.Context, req *", m.Input.GoIdent, ") (string, error) {")
+		g.P("return c.publish(", `"`, opt.Topic, `"`, ", req)")
+		g.P("}")
+	}
+}
+
+func genCreateTopicFunction(g *protogen.GeneratedFile) {
+	funcString := `
+	// GetOrCreateTopicIfNotExists: topicが存在しない場合は作成する
+	func GetOrCreateTopicIfNotExists(c *pubsub.Client, topic string) (*pubsub.Topic, error) {
+		ctx := context.Background()
+		t := c.Topic(topic)
+		ok, err := t.Exists(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return t, nil
+		}
+		t, err = c.CreateTopic(ctx, topic)
+		if err != nil {
+			return nil, err
+		}
+		return t, nil
+	}`
+	g.P(funcString)
 }

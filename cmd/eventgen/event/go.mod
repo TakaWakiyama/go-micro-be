@@ -1,12 +1,10 @@
-module eventhandler
-
-replace github.com/TakaWakiyama/forcusing-backend/cmd/eventgen/eventgen => ./event
+module eventgen
 
 go 1.19
 
 require (
 	cloud.google.com/go/pubsub v1.28.0
-	github.com/TakaWakiyama/forcusing-backend/cmd/eventgen/eventgen v0.0.0-00010101000000-000000000000
+	google.golang.org/protobuf v1.28.1
 )
 
 require (
@@ -29,5 +27,4 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20221202195650-67e5cbc046fd // indirect
 	google.golang.org/grpc v1.50.1 // indirect
-	google.golang.org/protobuf v1.28.1 // indirect
 )

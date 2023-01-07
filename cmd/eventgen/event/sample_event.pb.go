@@ -7,8 +7,9 @@ package eventgen
 import (
 	"fmt"
 	"context"
-	"encoding/json"
 	"cloud.google.com/go/pubsub"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type HelloWorldService interface {
@@ -33,7 +34,7 @@ func listenHelloWorld(ctx context.Context, service HelloWorldService, client *pu
 		msg.Ack()
 
 		var event HelloWorldRequest
-		if err := json.Unmarshal(msg.Data, &event); err != nil {
+		if err := proto.Unmarshal(msg.Data, &event); err != nil {
 			fmt.Println(err)
 		}
 		if err := service.HelloWorld(ctx, &event); err != nil {
@@ -54,7 +55,7 @@ func listenHogeEvent(ctx context.Context, service HelloWorldService, client *pub
 		msg.Ack()
 
 		var event HogeEventRequest
-		if err := json.Unmarshal(msg.Data, &event); err != nil {
+		if err := proto.Unmarshal(msg.Data, &event); err != nil {
 			fmt.Println(err)
 		}
 		if err := service.HogeEvent(ctx, &event); err != nil {
@@ -77,4 +78,64 @@ func pullMsgs(ctx context.Context, client *pubsub.Client, subScriptionName, topi
 		return err
 	}
 	return nil
+}
+
+type HelloWorldServiceClient interface {
+	PublishHelloWorld(ctx context.Context, req *HelloWorldRequest) (string, error)
+	PublishHogeEvent(ctx context.Context, req *HogeEventRequest) (string, error)
+}
+
+type innerHelloWorldServiceClient struct {
+	client *pubsub.Client
+}
+
+func NewHelloWorldServiceClient(client *pubsub.Client) *innerHelloWorldServiceClient {
+	return &innerHelloWorldServiceClient{
+		client: client,
+	}
+}
+
+func (c *innerHelloWorldServiceClient) publish(topic string, event protoreflect.ProtoMessage) (string, error) {
+	ctx := context.Background()
+	// TODO: メモリに持っておく
+	t := c.client.Topic(topic)
+
+	ev, err := proto.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+
+	result := t.Publish(ctx, &pubsub.Message{
+		Data: ev,
+	})
+	id, err := result.Get(ctx)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (c *innerHelloWorldServiceClient) PublishHelloWorld(ctx context.Context, req *HelloWorldRequest) (string, error) {
+	return c.publish("helloworldtopic", req)
+}
+func (c *innerHelloWorldServiceClient) PublishHogeEvent(ctx context.Context, req *HogeEventRequest) (string, error) {
+	return c.publish("hoge", req)
+}
+
+// GetOrCreateTopicIfNotExists: topicが存在しない場合は作成する
+func GetOrCreateTopicIfNotExists(c *pubsub.Client, topic string) (*pubsub.Topic, error) {
+	ctx := context.Background()
+	t := c.Topic(topic)
+	ok, err := t.Exists(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return t, nil
+	}
+	t, err = c.CreateTopic(ctx, topic)
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
 }
