@@ -8,5 +8,7 @@ import "context"
 
 type HelloWorldService interface {
 	HelloWorld(ctx context.Context, req *HelloWorldRequest) EmptyResponse
+	// helloworldtopichelloworldsubscription
 	HogeEvent(ctx context.Context, req *HogeEventRequest) EmptyResponse
+	// hogehoge
 }

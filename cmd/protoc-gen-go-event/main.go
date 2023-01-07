@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
+
+	"github.com/TakaWakiyama/forcusing-backend/cmd/protoc-gen-go-event/option"
 
 	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -57,7 +59,12 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 		// g.P("// ", m.Comments.Leading, " ", m.Comments.Trailing)
 		g.P(m.GoName, "(ctx context.Context, req *", m.Input.GoIdent, ") ", m.Output.GoIdent)
 		options := m.Desc.Options().(*descriptorpb.MethodOptions)
-		fmt.Printf("options: %+v\n", options)
+		ext := proto.GetExtension(options, option.E_PubSubOption)
+		opt, ok := ext.(*option.PubSubOption)
+		if !ok {
+			continue
+		}
+		g.P("//", opt.Topic, opt.Subscription)
 	}
 	g.P("}")
 
